@@ -1,1 +1,100 @@
-# SKILLS
+import { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+export default function TibiaSkillTracker() {
+  const [cargas, setCargas] = useState(0);
+  const [porcentagemRestante, setPorcentagemRestante] = useState(100);
+  const [resultado, setResultado] = useState(null);
+  const [historico, setHistorico] = useState([]);
+  const [tempoRestante, setTempoRestante] = useState(null);
+
+  const calcular = () => {
+    const porcentagemAvancada = 100 - porcentagemRestante;
+    const totalCargasUsadas = historico.length > 0 ? historico[0].cargas - cargas : 0;
+    const porcentagemAnterior = historico.length > 0 ? 100 - historico[0].porcentagemRestante : 0;
+    const porcentagemGanha = porcentagemAvancada - porcentagemAnterior;
+    const eficiencia = porcentagemGanha > 0 ? totalCargasUsadas / porcentagemGanha : 0;
+    const cargasRestantes = eficiencia * porcentagemRestante;
+
+    const horasDecorridas = historico.length > 0 ? (Date.now() - historico[0].timestamp) / (1000 * 60 * 60) : 0;
+    const taxaPorHora = horasDecorridas > 0 ? porcentagemGanha / horasDecorridas : 0;
+    const horasRestantes = taxaPorHora > 0 ? porcentagemRestante / taxaPorHora : 0;
+    const tempoFinal = new Date(Date.now() + horasRestantes * 60 * 60 * 1000);
+
+    setResultado({
+      porcentagemAvancada,
+      totalCargasUsadas,
+      eficiencia: eficiencia.toFixed(2),
+      cargasRestantes: Math.round(cargasRestantes),
+      tempoFinal
+    });
+
+    setHistorico([{ cargas, porcentagemRestante, timestamp: Date.now() }, ...historico]);
+  };
+
+  useEffect(() => {
+    if (!resultado?.tempoFinal) return;
+
+    const interval = setInterval(() => {
+      const diff = resultado.tempoFinal - new Date();
+      const totalSeconds = Math.max(0, Math.floor(diff / 1000));
+
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+
+      setTempoRestante(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [resultado]);
+
+  return (
+    <main className="min-h-screen p-6 bg-zinc-100 text-zinc-800">
+      <h1 className="text-3xl font-bold mb-6">Tibia Skill Tracker</h1>
+
+      <div className="grid gap-4 max-w-md">
+        <Input
+          type="number"
+          placeholder="Cargas atuais"
+          value={cargas}
+          onChange={(e) => setCargas(Number(e.target.value))}
+        />
+        <Input
+          type="number"
+          placeholder="% restante para próximo skill"
+          value={porcentagemRestante}
+          onChange={(e) => setPorcentagemRestante(Number(e.target.value))}
+        />
+        <Button onClick={calcular}>Calcular</Button>
+      </div>
+
+      {resultado && (
+        <Card className="mt-6">
+          <CardContent className="p-4 space-y-2">
+            <p><strong>Avanço total:</strong> {resultado.porcentagemAvancada.toFixed(2)}%</p>
+            <p><strong>Cargas usadas:</strong> {resultado.totalCargasUsadas}</p>
+            <p><strong>Eficiência:</strong> {resultado.eficiencia} cargas por 1%</p>
+            <p><strong>Cargas restantes estimadas:</strong> {resultado.cargasRestantes}</p>
+            {tempoRestante && <p><strong>Tempo estimado restante:</strong> {tempoRestante}</p>}
+          </CardContent>
+        </Card>
+      )}
+
+      {historico.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-2">Histórico</h2>
+          <ul className="space-y-1">
+            {historico.map((entry, index) => (
+              <li key={index} className="text-sm">
+                #{historico.length - index} - {entry.cargas} cargas, {entry.porcentagemRestante}% restante
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </main>
+  );
+}
